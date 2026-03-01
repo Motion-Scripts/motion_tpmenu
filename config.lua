@@ -40,7 +40,7 @@ Config.Keybind      = "F5"
             -- ntype = "success", "error", "info"
         end
 ]]
-Config.Notify = "bridge"
+Config.Notify = "motion_notify"
 
 --[[
     MENU

@@ -13,10 +13,10 @@ version     '1.0.0'
 
 dependencies { 'motion_bridge' }
 
-ui_page 'html/index.html'
+ui_page 'web/index.html'
 
 files {
-    'html/index.html',
+    'web/index.html',
 }
 
 shared_scripts {
