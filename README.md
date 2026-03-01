@@ -31,7 +31,7 @@ Ensure the following resources are started:
 
 ```cfg
 ensure motion_bridge
-ensure motion_notify
+ensure motion_notify (not required but reccomended)
 ```
 
 ---
