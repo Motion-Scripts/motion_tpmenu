@@ -1,0 +1,416 @@
+<!DOCTYPE html>
+<!--
+    Teleport menu UI — receives data from client, renders locations/categories.
+    Theme: Config.Theme in config.lua.
+-->
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>Teleport Menu</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300;14..32,400;14..32,500;14..32,600;14..32,700&display=swap" rel="stylesheet"/>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:rgba(12,12,14,.97);--bg-hi:rgba(16,16,20,.98);
+  --bh:rgba(255,255,255,.05);--ba:rgba(255,255,255,.08);
+  --b0:rgba(255,255,255,.06);--b1:rgba(255,255,255,.08);
+  --t0:rgba(255,255,255,.95);--t1:rgba(255,255,255,.5);--t2:rgba(255,255,255,.28);
+  --sh:0 8px 32px -4px rgba(0,0,0,.55),0 0 0 .5px rgba(255,255,255,.04);
+  --sh2:0 16px 48px -8px rgba(0,0,0,.65),0 0 0 .5px rgba(255,255,255,.04);
+  --r:12px;--rs:8px;
+  --expo:cubic-bezier(.22,1,.36,1);--expo-in:cubic-bezier(.55,0,1,.45);
+  --ac:#60a5fa;--acg:rgba(96,165,250,.15);
+  --ok:#34d399;--er:#fb7185;--wa:#fbbf24;
+  --mw:860px;--mh:580px;
+}
+html,body{height:100%;width:100%;background:transparent;font-family:'Inter',-apple-system,sans-serif;color:var(--t0);-webkit-font-smoothing:antialiased;overflow:hidden;user-select:none}
+::-webkit-scrollbar{width:3px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:rgba(255,255,255,.1);border-radius:2px}
+
+/* OVERLAY */
+#wrap{position:fixed;inset:0;display:none;align-items:center;justify-content:center;z-index:9000}
+#wrap.open{display:flex}
+
+/* MENU */
+.menu{background:var(--bg);border:1px solid var(--b1);border-radius:16px;box-shadow:var(--sh2),0 0 80px -20px color-mix(in srgb,var(--ac) 18%,transparent);width:var(--mw);max-height:var(--mh);display:flex;flex-direction:column;overflow:hidden;animation:mIn .38s var(--expo) both}
+@keyframes mIn{from{transform:scale(.93) translateY(20px);opacity:0}to{transform:none;opacity:1}}
+@keyframes mOut{from{transform:none;opacity:1}to{transform:scale(.93) translateY(20px);opacity:0}}
+.menu.closing{animation:mOut .22s var(--expo-in) both}
+
+/* HEADER */
+.hdr{display:flex;align-items:center;gap:13px;padding:15px 20px;border-bottom:1px solid var(--b0);flex-shrink:0}
+.hdr-ico{width:36px;height:36px;border-radius:10px;background:var(--acg);border:1px solid color-mix(in srgb,var(--ac) 30%,transparent);display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.hdr-ico svg{width:17px;height:17px;color:var(--ac)}
+.hdr-txt{flex:1}.hdr-title{font-size:15px;font-weight:600;letter-spacing:-.02em}.hdr-sub{font-size:11.5px;color:var(--t1);margin-top:1px}
+.hdr-x{width:30px;height:30px;border:none;background:transparent;border-radius:8px;cursor:pointer;color:var(--t2);display:flex;align-items:center;justify-content:center;transition:background .15s,color .15s}
+.hdr-x:hover{background:rgba(255,255,255,.08);color:var(--t0)}.hdr-x svg{width:14px;height:14px}
+
+/* TABS */
+.tabs{display:flex;padding:0 20px;border-bottom:1px solid var(--b0);flex-shrink:0}
+.tab{padding:10px 14px;font-size:12.5px;font-weight:500;color:var(--t1);border:none;background:transparent;cursor:pointer;font-family:inherit;border-bottom:2px solid transparent;margin-bottom:-1px;transition:color .2s,border-color .2s;white-space:nowrap;letter-spacing:-.01em;display:flex;align-items:center;gap:6px}
+.tab:hover{color:var(--t0)}.tab.on{color:var(--t0);border-bottom-color:var(--ac)}
+.tab svg{width:13px;height:13px;flex-shrink:0}
+
+/* BODY */
+.body{display:flex;flex:1;overflow:hidden;min-height:0}
+
+/* SIDEBAR */
+.side{width:174px;flex-shrink:0;border-right:1px solid var(--b0);padding:8px;overflow-y:auto;display:flex;flex-direction:column;gap:2px}
+.cat{display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:var(--rs);cursor:pointer;transition:background .15s;font-size:12.5px;color:var(--t1)}
+.cat:hover{background:var(--bh);color:var(--t0)}.cat.on{background:var(--ba);color:var(--t0)}
+.cat-ic{width:14px;height:14px;flex-shrink:0;display:flex;color:inherit}.cat-ic svg{width:100%;height:100%}
+.cat-lbl{flex:1;letter-spacing:-.01em}
+.cat-n{font-size:10px;font-weight:600;background:rgba(255,255,255,.05);color:var(--t2);padding:1px 5px;border-radius:10px}
+
+/* CONTENT */
+.content{flex:1;overflow-y:auto;padding:12px;display:flex;flex-direction:column}
+
+/* TOOLBAR */
+.toolbar{display:flex;align-items:center;gap:6px;margin-bottom:10px;flex-shrink:0}
+.sw{position:relative;flex:1}.si{position:absolute;left:10px;top:50%;transform:translateY(-50%);width:13px;height:13px;color:var(--t2);pointer-events:none;display:flex}.si svg{width:100%;height:100%}
+.search{width:100%;padding:7px 10px 7px 30px;background:rgba(255,255,255,.04);border:1px solid var(--b1);border-radius:var(--rs);color:var(--t0);font-family:inherit;font-size:12.5px;outline:none;transition:border-color .2s,background .2s}
+.search::placeholder{color:var(--t2)}.search:focus{border-color:color-mix(in srgb,var(--ac) 45%,transparent);background:rgba(255,255,255,.06)}
+.vt{display:flex;gap:2px;background:rgba(255,255,255,.04);border-radius:7px;padding:2px;flex-shrink:0}
+.vb{width:28px;height:28px;border:none;border-radius:5px;background:transparent;cursor:pointer;color:var(--t2);display:flex;align-items:center;justify-content:center;transition:background .15s,color .15s}
+.vb svg{width:14px;height:14px}.vb.on{background:rgba(255,255,255,.08);color:var(--t0)}
+
+/* RECENT */
+.recent{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:10px}
+.rc{display:flex;align-items:center;gap:5px;padding:4px 9px;background:rgba(255,255,255,.04);border:1px solid var(--b0);border-radius:20px;cursor:pointer;font-size:11px;color:var(--t1);transition:background .15s,color .15s;white-space:nowrap}
+.rc:hover{background:rgba(255,255,255,.08);color:var(--t0)}.rc svg{width:10px;height:10px;flex-shrink:0}
+.sec{font-size:10.5px;font-weight:600;text-transform:uppercase;letter-spacing:.07em;color:var(--t2);margin-bottom:7px;padding-left:2px}
+
+/* LOCATION GRID */
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(168px,1fr));gap:8px}
+.lc{background:rgba(255,255,255,.03);border:1px solid var(--b0);border-radius:10px;overflow:hidden;cursor:pointer;transition:background .2s,border-color .2s,transform .15s,box-shadow .2s;display:flex;flex-direction:column}
+.lc:hover{background:rgba(255,255,255,.06);border-color:color-mix(in srgb,var(--ac) 32%,transparent);transform:translateY(-1px);box-shadow:0 8px 24px -6px rgba(0,0,0,.4)}
+.lc:active{transform:none;box-shadow:none}
+.lc.sel{border-color:color-mix(in srgb,var(--ac) 55%,transparent);background:var(--acg);box-shadow:0 0 0 1px color-mix(in srgb,var(--ac) 20%,transparent)}
+.lc-img{width:100%;aspect-ratio:16/9;overflow:hidden;background:rgba(255,255,255,.04);flex-shrink:0}
+.lc-img img{width:100%;height:100%;object-fit:cover;display:block;transition:transform .35s var(--expo)}
+.lc:hover .lc-img img{transform:scale(1.06)}
+.lc-ph{width:100%;height:100%;display:flex;align-items:center;justify-content:center;color:var(--t2)}.lc-ph svg{width:26px;height:26px}
+.lc-body{padding:9px 10px 10px;display:flex;flex-direction:column;gap:3px}
+.lc-name{font-size:12px;font-weight:600;letter-spacing:-.01em;line-height:1.3}
+.lc-desc{font-size:11px;color:var(--t1);line-height:1.35}
+.lc-foot{display:flex;align-items:center;gap:5px;margin-top:5px}
+
+/* LOCATION LIST */
+.list{display:flex;flex-direction:column;gap:3px}
+.li{display:flex;align-items:center;gap:11px;padding:9px 11px;border-radius:var(--rs);cursor:pointer;border:1px solid transparent;transition:background .15s,border-color .15s}
+.li:hover{background:var(--bh);border-color:var(--b0)}.li:active{background:var(--ba)}
+.li.sel{background:var(--acg);border-color:color-mix(in srgb,var(--ac) 32%,transparent)}
+.li-thumb{width:46px;height:30px;border-radius:6px;overflow:hidden;flex-shrink:0;background:rgba(255,255,255,.04);border:1px solid var(--b0);display:flex;align-items:center;justify-content:center}
+.li-thumb img{width:100%;height:100%;object-fit:cover}.li-thumb svg{width:14px;height:14px;color:var(--t2)}
+.li-info{flex:1;min-width:0}
+.li-name{font-size:12.5px;font-weight:500;letter-spacing:-.01em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.li-coords{font-size:10.5px;color:var(--t2);font-variant-numeric:tabular-nums;margin-top:1px}
+
+/* PEDS */
+.ped-cur{display:flex;align-items:center;gap:13px;padding:12px 13px;background:rgba(255,255,255,.03);border:1px solid var(--b0);border-radius:10px;margin-bottom:10px;flex-shrink:0}
+.ped-av{width:48px;height:48px;border-radius:10px;background:rgba(255,255,255,.06);border:1px solid var(--b1);overflow:hidden;flex-shrink:0;display:flex;align-items:center;justify-content:center}
+.ped-av img{width:100%;height:100%;object-fit:cover}.ped-av svg{width:22px;height:22px;color:var(--t2)}
+.ped-info{flex:1;min-width:0}
+.ped-name{font-size:13px;font-weight:600;letter-spacing:-.01em}
+.ped-hash{font-size:10.5px;color:var(--t2);font-family:monospace;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ped-acts{display:flex;gap:6px;flex-shrink:0}
+.pbtn{padding:6px 12px;border:1px solid var(--b1);border-radius:var(--rs);background:rgba(255,255,255,.04);color:var(--t1);font-family:inherit;font-size:12px;font-weight:500;cursor:pointer;transition:background .15s,color .15s}
+.pbtn:hover{background:rgba(255,255,255,.09);color:var(--t0)}
+.pbtn.ac{background:var(--acg);border-color:color-mix(in srgb,var(--ac) 35%,transparent);color:var(--ac)}
+.pbtn.ac:hover{background:color-mix(in srgb,var(--ac) 22%,transparent)}
+.ped-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(118px,1fr));gap:7px}
+.pc{background:rgba(255,255,255,.03);border:1px solid var(--b0);border-radius:10px;cursor:pointer;transition:background .2s,border-color .2s,transform .15s;display:flex;flex-direction:column;align-items:center;padding:12px 8px 10px;gap:7px}
+.pc:hover{background:rgba(255,255,255,.07);border-color:color-mix(in srgb,var(--ac) 28%,transparent);transform:translateY(-1px)}
+.pc.sel{background:var(--acg);border-color:color-mix(in srgb,var(--ac) 50%,transparent)}
+.pc:active{transform:scale(.98)}
+.pc-img{width:50px;height:64px;border-radius:8px;overflow:hidden;background:rgba(255,255,255,.06);border:1px solid var(--b1);display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.pc-img img{width:100%;height:100%;object-fit:cover}.pc-img svg{width:22px;height:22px;color:var(--t2)}
+.pc-name{font-size:11px;font-weight:500;text-align:center;line-height:1.3;letter-spacing:-.01em}
+
+/* SHARED */
+.badge{font-size:10px;font-weight:600;padding:2px 7px;border-radius:20px;background:rgba(255,255,255,.06);color:var(--t2)}
+.badge.admin{background:rgba(251,113,133,.1);color:#fb7185}.badge.vip{background:rgba(251,191,36,.1);color:#fbbf24}
+.fav{margin-left:auto;width:22px;height:22px;display:flex;align-items:center;justify-content:center;border:none;background:transparent;cursor:pointer;color:var(--t2);border-radius:5px;transition:color .2s,background .15s;flex-shrink:0}
+.fav:hover{background:rgba(255,255,255,.06);color:#fbbf24}.fav.on{color:#fbbf24}.fav svg{width:12px;height:12px}
+
+/* EMPTY */
+.empty{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;padding:40px;color:var(--t2)}
+.empty svg{width:34px;height:34px;opacity:.3}.empty-t{font-size:13px;color:var(--t1)}.empty-s{font-size:11.5px;text-align:center;line-height:1.5}
+
+/* FOOTER */
+.footer{padding:10px 20px;border-top:1px solid var(--b0);display:flex;align-items:center;gap:8px;flex-shrink:0}
+.footer-hint{flex:1;font-size:11px;color:var(--t2)}
+.kk{display:inline-flex;align-items:center;min-width:22px;height:18px;padding:0 5px;background:rgba(255,255,255,.06);border:1px solid var(--b1);border-radius:4px;font-size:10.5px;font-weight:600;color:var(--t1);font-family:monospace}
+.btn{padding:6px 14px;border-radius:7px;border:1px solid var(--b1);background:rgba(255,255,255,.04);color:var(--t1);font-family:inherit;font-size:12px;font-weight:500;cursor:pointer;transition:background .15s,color .15s}
+.btn:hover{background:rgba(255,255,255,.09);color:var(--t0)}
+.btn.ac{background:var(--acg);border-color:color-mix(in srgb,var(--ac) 35%,transparent);color:var(--ac)}
+.btn.ac:hover{background:color-mix(in srgb,var(--ac) 22%,transparent)}
+
+/* CONFIRM */
+#confirm{position:fixed;inset:0;z-index:9100;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,.45)}
+#confirm.open{display:flex}
+.cf{background:var(--bg-hi);border:1px solid var(--b1);border-radius:var(--r);box-shadow:var(--sh2);padding:22px;width:308px;animation:mIn .3s var(--expo) both}
+.cf-title{font-size:14px;font-weight:600;margin-bottom:5px;letter-spacing:-.01em}
+.cf-sub{font-size:12px;color:var(--t1);margin-bottom:18px;line-height:1.6}
+.cf-acts{display:flex;gap:7px}.cf-acts .btn{flex:1;text-align:center}
+</style>
+</head>
+<body>
+
+<div id="wrap">
+  <div class="menu" id="menu">
+
+    <div class="hdr">
+      <div class="hdr-ico">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+      </div>
+      <div class="hdr-txt">
+        <div class="hdr-title">Teleport Menu</div>
+        <div class="hdr-sub" id="hdrSub">Loading…</div>
+      </div>
+      <button class="hdr-x" id="btnX">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 6 6 18M6 6l12 12"/></svg>
+      </button>
+    </div>
+
+    <div class="body">
+      <div class="side" id="side"></div>
+      <div class="content" id="main"></div>
+    </div>
+
+    <div class="footer">
+      <div class="footer-hint"><span class="kk">ESC</span> close &nbsp;·&nbsp; double-click to teleport</div>
+      <button class="btn" id="btnClose">Close</button>
+      <button class="btn ac" id="btnAction">Teleport</button>
+    </div>
+
+  </div>
+</div>
+
+<div id="confirm">
+  <div class="cf">
+    <div class="cf-title" id="cfTitle">Confirm Teleport</div>
+    <div class="cf-sub" id="cfSub">Are you sure?</div>
+    <div class="cf-acts">
+      <button class="btn" id="cfNo">Cancel</button>
+      <button class="btn ac" id="cfYes">Teleport</button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ══════════════════════════════════════════
+   STATE
+══════════════════════════════════════════ */
+const S = {
+  open:false, settings:{}, categories:[], locations:[],
+  isAdmin:false, cat:'all', view:'grid', q:'', sel:null, pending:null,
+  favs: lsGet('mtp_favs',[]),
+  recent: lsGet('mtp_recent',[]),
+};
+
+function lsGet(k,fb){try{return JSON.parse(localStorage.getItem(k))||fb}catch{return fb}}
+function lsSave(k,v){localStorage.setItem(k,JSON.stringify(v))}
+
+/* ══════════════════════════════════════════
+   OPEN / CLOSE
+══════════════════════════════════════════ */
+function openMenu(d){
+  Object.assign(S,{
+    settings:d.settings||{}, categories:d.categories||[], locations:d.locations||[],
+    isAdmin:d.isAdmin||false, cat:'all', q:'', sel:null, open:true,
+  });
+  S.view = S.settings.defaultView||'grid';
+
+  const t=S.settings.theme||{}, r=document.documentElement.style;
+  if(t.accentColor) r.setProperty('--ac',t.accentColor);
+  if(t.accentGlow)  r.setProperty('--acg',t.accentGlow);
+  if(t.menuWidth)   r.setProperty('--mw',t.menuWidth);
+  if(t.menuHeight)  r.setProperty('--mh',t.menuHeight);
+
+  g('hdrSub').textContent = S.locations.length + ' locations';
+
+  g('wrap').classList.add('open');
+  render();
+}
+
+function closeMenu(){
+  if(!S.open) return;
+  S.open=false;
+  const m=g('menu'); m.classList.add('closing');
+  setTimeout(()=>{g('wrap').classList.remove('open');m.classList.remove('closing')},220);
+  nui('closeTPMenu',{});
+}
+
+/* ══════════════════════════════════════════
+   RENDER
+══════════════════════════════════════════ */
+function render(){ renderSide(); renderMain(); syncFooter(); }
+
+function syncFooter(){
+  g('btnAction').textContent = 'Teleport';
+}
+
+/* ── SIDEBAR ───────────────────────────── */
+function renderSide(){
+  const countLoc = (id) => id==='all' ? S.locations.length : (id==='favs' ? S.favs.filter(x=>S.locations.find(l=>l.id===x)).length : S.locations.filter(l=>l.category===id).length);
+  const all = {id:'all', label:'All', icon:ICON_GRID, n:countLoc('all')};
+  const favs = {id:'favs', label:'Favourites', icon:ICON_HEART, n:countLoc('favs')};
+  const cats = [all, ...S.categories.map(c=>({id:c.id,label:c.label,icon:c.icon,n:countLoc(c.id)})), favs];
+  g('side').innerHTML = cats.map(c=>`
+    <div class="cat${c.id===S.cat?' on':''}" data-lc="${c.id}">
+      <span class="cat-ic">${c.icon}</span>
+      <span class="cat-lbl">${e(c.label)}</span>
+      <span class="cat-n">${c.n}</span>
+    </div>`).join('');
+  qa('[data-lc]').forEach(el=>el.addEventListener('click',()=>{S.cat=el.dataset.lc;S.q='';S.sel=null;renderSide();renderMain();}));
+}
+
+/* ── MAIN ────────────────────────────────── */
+function renderMain(){
+  renderLocs();
+}
+
+function renderLocs(){
+  let locs=S.cat==='favs' ? S.locations.filter(l=>S.favs.includes(l.id)) : (S.cat==='all' ? S.locations : S.locations.filter(l=>l.category===S.cat));
+  if(S.q){const q=S.q.toLowerCase();locs=locs.filter(l=>l.name.toLowerCase().includes(q)||(l.desc||'').toLowerCase().includes(q));}
+
+  const recentIds = S.settings.showRecent!==false ? S.recent.filter(id=>S.locations.find(l=>l.id===id)).slice(0,S.settings.maxRecent||5) : [];
+  const recentHtml = recentIds.length ? `<div class="sec">Recent</div><div class="recent">${recentIds.map(id=>{const l=S.locations.find(z=>z.id===id);return l?`<div class="rc" data-tp="${l.id}">${ICON_CLOCK}${e(l.name)}</div>`:''}).join('')}</div>` : '';
+
+  const toolbar=`<div class="toolbar">
+    <div class="sw"><div class="si">${ICON_SEARCH}</div><input class="search" placeholder="Search…" value="${e(S.q)}" oninput="S.q=this.value;renderMain()"/></div>
+    <div class="vt">
+      <button class="vb${S.view==='grid'?' on':''}" id="vgBtn">${ICON_GRID}</button>
+      <button class="vb${S.view==='list'?' on':''}" id="vlBtn">${ICON_LIST}</button>
+    </div>
+  </div>`;
+
+  let body;
+  if(!locs.length) body=`<div class="empty">${ICON_PIN}<div class="empty-t">No locations</div></div>`;
+  else if(S.view==='grid') body=`<div class="grid">${locs.map(locCard).join('')}</div>`;
+  else body=`<div class="list">${locs.map(locRow).join('')}</div>`;
+
+  g('main').innerHTML = toolbar+recentHtml+body;
+  g('vgBtn')?.addEventListener('click',()=>{S.view='grid';renderMain();});
+  g('vlBtn')?.addEventListener('click',()=>{S.view='list';renderMain();});
+  qa('.lc[data-id],.li[data-id]').forEach(el=>{
+    el.addEventListener('click',ev=>{if(ev.target.closest('.fav'))return;qa('.lc,.li').forEach(z=>z.classList.remove('sel'));el.classList.add('sel');S.sel=el.dataset.id;});
+    el.addEventListener('dblclick',ev=>{if(ev.target.closest('.fav'))return;triggerTP(el.dataset.id);});
+  });
+  qa('.fav[data-fid]').forEach(b=>b.addEventListener('click',ev=>{ev.stopPropagation();toggleFav(b.dataset.fid);}));
+  qa('.rc[data-tp]').forEach(b=>b.addEventListener('click',()=>triggerTP(b.dataset.tp)));
+}
+
+function locCard(l){
+  const fav=S.favs.includes(l.id),sel=S.sel===l.id;
+  const img=l.image
+    ?`<img src="${e(l.image)}" alt="" loading="lazy" onerror="this.parentElement.innerHTML='<div class=lc-ph><svg viewBox=\\'0 0 24 24\\' fill=\\'none\\' stroke=\\'currentColor\\' stroke-width=\\'1.5\\'><path d=\\'M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z\\'/><circle cx=\\'12\\' cy=\\'10\\' r=\\'3\\'/></svg></div>'"/>`
+    :`<div class="lc-ph"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg></div>`;
+  return `<div class="lc${sel?' sel':''}" data-id="${l.id}">
+    <div class="lc-img">${img}</div>
+    <div class="lc-body">
+      <div class="lc-name">${e(l.name)}</div>
+      <div class="lc-desc">${e(l.desc||'')}</div>
+      <div class="lc-foot">
+        ${l.badge?`<span class="badge ${l.badge}">${l.badge.toUpperCase()}</span>`:''}
+        <button class="fav${fav?' on':''}" data-fid="${l.id}"><svg viewBox="0 0 24 24" fill="${fav?'currentColor':'none'}" stroke="currentColor" stroke-width="2"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg></button>
+      </div>
+    </div>
+  </div>`;
+}
+
+function locRow(l){
+  const fav=S.favs.includes(l.id),sel=S.sel===l.id,showC=S.settings.showCoords&&l.coords;
+  return `<div class="li${sel?' sel':''}" data-id="${l.id}">
+    <div class="li-thumb">${l.image?`<img src="${e(l.image)}" alt="" loading="lazy"/>`:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="width:14px;height:14px;color:var(--t2)"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/></svg>`}</div>
+    <div class="li-info"><div class="li-name">${e(l.name)}</div>${showC?`<div class="li-coords">${l.coords.x.toFixed(1)}, ${l.coords.y.toFixed(1)}, ${l.coords.z.toFixed(1)}</div>`:''}</div>
+    ${l.badge?`<span class="badge ${l.badge}">${l.badge.toUpperCase()}</span>`:''}
+    <button class="fav${fav?' on':''}" data-fid="${l.id}"><svg viewBox="0 0 24 24" fill="${fav?'currentColor':'none'}" stroke="currentColor" stroke-width="2" style="width:12px;height:12px"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg></button>
+  </div>`;
+}
+
+/* ══════════════════════════════════════════
+   TELEPORT
+══════════════════════════════════════════ */
+function triggerTP(id){
+  const loc=S.locations.find(l=>l.id===id);if(!loc)return;
+  if(S.settings.confirmTP){
+    S.pending=id;
+    g('cfTitle').textContent='Teleport to '+loc.name+'?';
+    g('cfSub').textContent=loc.desc||'You will be moved to this location.';
+    g('confirm').classList.add('open');
+  } else { doTP(id); }
+}
+
+function doTP(id){
+  S.recent=[id,...S.recent.filter(x=>x!==id)].slice(0,S.settings.maxRecent||5);
+  lsSave('mtp_recent',S.recent);
+  nui('teleport',{id});
+}
+
+function toggleFav(id){
+  const i=S.favs.indexOf(id);
+  if(i>=0) S.favs.splice(i,1); else S.favs.push(id);
+  lsSave('mtp_favs',S.favs);
+  render();
+}
+
+/* ══════════════════════════════════════════
+   UTILS
+══════════════════════════════════════════ */
+function g(id){return document.getElementById(id)}
+function qa(s){return document.querySelectorAll(s)}
+function e(s){if(!s)return '';return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
+function nui(action,data){
+  const rn=typeof GetParentResourceName!=='undefined'?GetParentResourceName():'motion_tp';
+  fetch(`https://${rn}/${action}`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data||{})}).catch(()=>{});
+}
+
+/* ══════════════════════════════════════════
+   ICON CONSTANTS
+══════════════════════════════════════════ */
+const ICON_GRID   = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>`;
+const ICON_LIST   = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>`;
+const ICON_HEART  = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>`;
+const ICON_SEARCH = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>`;
+const ICON_CLOCK  = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>`;
+const ICON_PIN    = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>`;
+const ICON_USER   = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>`;
+const ICON_USER_LG= `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="width:22px;height:22px;color:var(--t2)"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>`;
+
+/* ══════════════════════════════════════════
+   EVENT WIRING
+══════════════════════════════════════════ */
+g('btnX').addEventListener('click', closeMenu);
+g('btnClose').addEventListener('click', closeMenu);
+
+g('btnAction').addEventListener('click',()=>{
+  if(S.sel) triggerTP(S.sel);
+});
+
+g('cfYes').addEventListener('click',()=>{
+  g('confirm').classList.remove('open');
+  if(S.pending){ doTP(S.pending); S.pending=null; }
+});
+g('cfNo').addEventListener('click',()=>{ g('confirm').classList.remove('open'); S.pending=null; });
+
+document.addEventListener('keydown',e=>{
+  if(e.key==='Escape'){
+    if(g('confirm').classList.contains('open')){ g('confirm').classList.remove('open'); S.pending=null; return; }
+    if(S.open) closeMenu();
+  }
+});
+
+/* ══════════════════════════════════════════
+   NUI ROUTER
+══════════════════════════════════════════ */
+window.addEventListener('message',e=>{
+  const d=e.data; if(!d||!d.action) return;
+  if(d.action==='openTPMenu')  openMenu(d);
+  if(d.action==='closeTPMenu') closeMenu();
+});
+</script>
+</body>
+</html>
