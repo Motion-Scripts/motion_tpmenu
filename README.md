@@ -4,7 +4,7 @@ A modern, category-based teleport menu for FiveM servers.
 
 Built for performance, clean UI, and full framework compatibility through `motion_bridge`.
 
-> ⚠️ `motion_bridge` must start **before** `tp_menu`.
+> ⚠️ `motion_bridge` must start **before** `motion_tpmenu`.
 
 Support: https://discord.gg/jAbJ8rVUqw
 
