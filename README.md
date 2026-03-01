@@ -32,7 +32,6 @@ Ensure the following resources are started:
 ```cfg
 ensure motion_bridge
 ensure motion_notify
-ensure tp_menu
 ```
 
 ---
